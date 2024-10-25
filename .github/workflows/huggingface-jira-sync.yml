@@ -1,8 +1,8 @@
 name: Create Jira issue from Hugging Face updates
 
 on:
-  repository_dispatch:  # Hugging Face Webhook 이벤트 감지
-    types: [huggingface_update]
+  repository_dispatch:
+    types: [huggingface_update]  # Hugging Face에서 발생한 이벤트 트리거
 
 jobs:
   create-issue:
@@ -23,3 +23,19 @@ jobs:
           issuetype: Task  # 이슈 타입
           summary: 'Hugging Face Update: ${{ github.event.client_payload.summary }}'
           description: 'Hugging Face 스페이스 업데이트 내용: ${{ github.event.client_payload.description }}'
+
+      - name: Trigger GitHub Action
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token $PAT_TOKEN" \
+            https://api.github.com/repos/SK-Rookies-Final3/AI-Custom/dispatches \
+            -d '{
+              "event_type": "huggingface_update",
+              "client_payload": {
+                "summary": "Hugging Face Update",
+                "description": "A new update was pushed to the Space."
+              }
+            }'
