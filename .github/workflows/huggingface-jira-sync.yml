@@ -19,23 +19,7 @@ jobs:
       - name: Create Jira Issue
         uses: atlassian/gajira-create@v3
         with:
-          project: RF  # Jira 프로젝트 Key
-          issuetype: Task  # 이슈 타입
+          project: RF
+          issuetype: Task
           summary: 'Hugging Face Update: ${{ github.event.client_payload.summary }}'
           description: 'Hugging Face 스페이스 업데이트 내용: ${{ github.event.client_payload.description }}'
-
-      - name: Trigger GitHub Action
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          curl -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token $PAT_TOKEN" \
-            https://api.github.com/repos/SK-Rookies-Final3/AI-Custom/dispatches \
-            -d '{
-              "event_type": "huggingface_update",
-              "client_payload": {
-                "summary": "Hugging Face Update",
-                "description": "A new update was pushed to the Space."
-              }
-            }'
