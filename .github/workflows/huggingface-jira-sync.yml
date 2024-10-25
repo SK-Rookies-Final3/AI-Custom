@@ -1,8 +1,8 @@
 name: Create Jira issue from Hugging Face updates
 
 on:
-  repository_dispatch:
-    types: [huggingface_update]  # Hugging Face에서 발생한 이벤트 트리거
+  repository_dispatch:  # Hugging Face Webhook 이벤트 감지
+    types: [huggingface_update]
 
 jobs:
   create-issue:
@@ -19,7 +19,7 @@ jobs:
       - name: Create Jira Issue
         uses: atlassian/gajira-create@v3
         with:
-          project: RF
-          issuetype: Task
+          project: RF  # Jira 프로젝트 Key
+          issuetype: Task  # 이슈 타입
           summary: 'Hugging Face Update: ${{ github.event.client_payload.summary }}'
           description: 'Hugging Face 스페이스 업데이트 내용: ${{ github.event.client_payload.description }}'
