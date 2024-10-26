@@ -17,5 +17,5 @@ jobs:
           TOKEN: ${{ secrets.ACTIONS_PAT }}
         run: |
           git config --global user.name "qqwaseoke"
-          git config --global user.email "qqwaseoke@gmail.com"
+          git config --global user.email "waseoke@gmail.com"
           git pull origin main
