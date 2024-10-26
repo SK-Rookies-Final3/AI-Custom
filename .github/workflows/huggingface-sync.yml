@@ -1,0 +1,27 @@
+name: Hugging Face Sync
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 매 정각마다 실행
+  workflow_dispatch:  # 수동으로 실행 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Clone Hugging Face Space
+        run: |
+          git clone https://huggingface.co/spaces/waseoke/shortpingoo.git
+          cp -r shortpingoo/* .
+      
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "your-username"
+          git config --global user.email "your-email@example.com"
+          git add .
+          git commit -m "Hugging Face 작업 업데이트 [AI-123]" || echo "Nothing to commit"
+          git push origin main
