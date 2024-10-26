@@ -24,4 +24,4 @@ jobs:
           git config --global user.email "qqwaseoke@gmail.com"
           git add .
           git commit -m "RF-184 Update Two-Tower Model" || echo "Nothing to commit"
-          git push origin main
+          git push https://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@github.com/SK-Rookies-Final3/AI-Custom.git main
