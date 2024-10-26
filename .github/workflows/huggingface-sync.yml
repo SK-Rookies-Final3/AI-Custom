@@ -1,9 +1,8 @@
 name: Hugging Face Sync
 
 on:
-  push:  # main 브랜치에 푸시될 때 트리거
-    branches:
-      - main
+  repository_dispatch:
+    types: [huggingface-sync]
 
 jobs:
   sync:
@@ -14,9 +13,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Pull latest changes
+        env:
+          TOKEN: ${{ secrets.ACTIONS_PAT }}
         run: |
+          git config --global user.name "qqwaseoke"
+          git config --global user.email "qqwaseoke@gmail.com"
           git pull origin main
-
-      - name: Optional: Run tests or build
-        run: |
-          echo "Running tests or other tasks..."
