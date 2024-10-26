@@ -1,9 +1,9 @@
 name: Hugging Face Sync
 
 on:
+  workflow_dispatch:  # 수동 실행 허용
   schedule:
-    - cron: '0 * * * *'  # 매 정각마다 실행
-  workflow_dispatch:  # 수동으로 실행 가능
+    - cron: '0 * * * *'  # 매 정각 실행
 
 jobs:
   sync:
@@ -17,11 +17,13 @@ jobs:
         run: |
           git clone https://huggingface.co/spaces/waseoke/shortpingoo.git
           cp -r shortpingoo/* .
-      
+
       - name: Commit and Push changes
+        env:
+          TOKEN: ${{ secrets.ACTIONS_PAT }}  # GitHub Secrets 사용
         run: |
           git config --global user.name "qqwaseoke"
           git config --global user.email "qqwaseoke@gmail.com"
           git add .
           git commit -m "RF-184 Update Two-Tower Model" || echo "Nothing to commit"
-          git push https://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@github.com/SK-Rookies-Final3/AI-Custom.git main
+          git push https://$TOKEN@github.com/SK-Rookies-Final3/AI-Custom.git main
