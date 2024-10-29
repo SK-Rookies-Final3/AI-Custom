@@ -1,7 +1,7 @@
 name: Hugging Face Sync
 
 on:
-  repository_dispatch:
+  repository_dispatch:  # Hugging Face에서 Webhook 트리거
     types: [huggingface-sync]
 
 jobs:
@@ -10,12 +10,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3  # 기존 GitHub 레포지토리 체크아웃
 
-      - name: Pull latest changes
+      - name: Clone Hugging Face Space
+        run: |
+          git clone https://huggingface.co/spaces/waseoke/shortpingoo.git
+          cd shortpingoo
+          cp -r * ../  # Hugging Face의 파일을 상위 폴더로 복사
+
+      - name: Push changes to GitHub
         env:
           TOKEN: ${{ secrets.ACTIONS_PAT }}
         run: |
           git config --global user.name "qqwaseoke"
-          git config --global user.email "waseoke@gmail.com"
-          git pull origin main
+          git config --global user.email "qqwaseoke@gmail.com"
+          git pull origin main  # 최신 변경사항과 병합
+          git push https://$TOKEN@github.com/SK-Rookies-Final3/AI-Custom.git main
