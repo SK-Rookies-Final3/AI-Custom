@@ -1,16 +1,32 @@
 name: Hugging Face Sync
 
 on:
-  repository_dispatch:
-    types: [huggingface-sync]
+  push:
+    branches:
+      - main  # Hugging Face Spaces의 기본 브랜치를 설정하세요.
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Log success message
-        run: echo "Successfully received webhook from Hugging Face"
+      - name: Set up Git
+        run: |
+          git config --global user.name "QQWaseokE"
+          git config --global user.email "waseoke@gmail.com"
+
+      - name: Extract Commit Message
+        id: get_commit_message
+        run: |
+          export COMMIT_MESSAGE=$(jq -r '.head_commit.message' $GITHUB_EVENT_PATH)
+          echo "COMMIT_MESSAGE=${COMMIT_MESSAGE}" >> $GITHUB_ENV
+
+      - name: Commit and Push to GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add .
+          git commit -m "${COMMIT_MESSAGE}"
+          git push "https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/SK-Rookies-Final3/AI-Custom.git" HEAD:RF-184-Two-Tower-Model
