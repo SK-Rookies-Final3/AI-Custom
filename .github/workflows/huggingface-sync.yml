@@ -23,10 +23,17 @@ jobs:
           export COMMIT_MESSAGE=$(jq -r '.head_commit.message' $GITHUB_EVENT_PATH)
           echo "COMMIT_MESSAGE=${COMMIT_MESSAGE}" >> $GITHUB_ENV
 
+      - name: Check for changes
+        run: git status
+
       - name: Commit and Push to GitHub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add .
-          git commit -m "${COMMIT_MESSAGE}"
-          git push "https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/SK-Rookies-Final3/AI-Custom.git" HEAD:RF-184-Two-Tower-Model
+          if ! git diff --cached --quiet; then
+            git commit -m "${COMMIT_MESSAGE}"
+            git push "https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/SK-Rookies-Final3/AI-Custom.git" HEAD:RF-184-Two-Tower-Model
+          else
+            echo "No changes to commit"
+          fi
