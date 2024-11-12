@@ -49,5 +49,11 @@ product_data = product_collection.find_one({"product_id": "1"})  # 특정 상품
 if product_data:
     product_embedding = embed_product_data(product_data)
     print("Product Embedding:", product_embedding)
+
+    # product_id 기준으로 임베딩을 MongoDB에 저장
+    product_collection.update_one(
+        {"product_id": "1"}, {"$set": {"embedding": product_embedding.tolist()}}
+    )
+    print("Embedding saved to MongoDB based on product_id.")
 else:
     print("Product not found.")
