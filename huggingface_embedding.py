@@ -4,16 +4,14 @@ import torch
 from torch.nn import Embedding
 
 # MongoDB Atlas 연결 설정
-client = MongoClient(
-    "mongodb+srv://waseoke:rookies3@cluster0.ps7gq.mongodb.net/test?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true"
-)
+client = MongoClient("mongodb+srv://waseoke:rookies3@cluster0.ps7gq.mongodb.net/test?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true")
 db = client["패션"]
 product_collection = db["여성의류"]
+embedding_collection = db["product_embeddings"]  # 임베딩을 저장할 컬렉션
 
 # Hugging Face의 한국어 BERT 모델 및 토크나이저 로드 (예: klue/bert-base)
 tokenizer = BertTokenizer.from_pretrained("klue/bert-base")
 model = BertModel.from_pretrained("klue/bert-base")
-
 
 # 상품 타워: 데이터 임베딩
 def embed_product_data(product_data):
@@ -41,7 +39,6 @@ def embed_product_data(product_data):
     )
     return product_embedding.detach().numpy()
 
-
 # MongoDB에서 데이터 가져오기
 product_data = product_collection.find_one({"product_id": "1"})  # 특정 상품 ID
 
@@ -50,10 +47,12 @@ if product_data:
     product_embedding = embed_product_data(product_data)
     print("Product Embedding:", product_embedding)
 
-    # product_id 기준으로 임베딩을 MongoDB에 저장
-    product_collection.update_one(
-        {"product_id": "1"}, {"$set": {"embedding": product_embedding.tolist()}}
+    # MongoDB Atlas의 product_embeddings 컬렉션에 임베딩 저장
+    embedding_collection.update_one(
+        {"product_id": product_data["product_id"]},  # product_id 기준으로 찾기
+        {"$set": {"embedding": product_embedding.tolist()}},  # 벡터를 리스트 형태로 저장
+        upsert=True  # 기존 항목이 없으면 새로 삽입
     )
-    print("Embedding saved to MongoDB based on product_id.")
+    print("Embedding saved to MongoDB Atlas based on product_id.")
 else:
     print("Product not found.")
