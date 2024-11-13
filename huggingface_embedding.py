@@ -5,13 +5,21 @@ from torch.nn import Embedding
 
 # MongoDB Atlas 연결 설정
 client = MongoClient("mongodb+srv://waseoke:rookies3@cluster0.ps7gq.mongodb.net/test?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true")
-db = client["패션"]
-product_collection = db["여성의류"]
-embedding_collection = db["product_embeddings"]  # 임베딩을 저장할 컬렉션
+db = client["two_tower_model"]
+product_collection = db["product_tower"]
+user_collection = db['user_tower']
+product_embedding_collection = db["product_embeddings"]  # 상품 임베딩을 저장할 컬렉션
+user_embedding_collection = db["user_embeddings"]  # 사용자 임베딩을 저장할 컬렉션
 
 # Hugging Face의 한국어 BERT 모델 및 토크나이저 로드 (예: klue/bert-base)
 tokenizer = BertTokenizer.from_pretrained("klue/bert-base")
 model = BertModel.from_pretrained("klue/bert-base")
+
+# Height와 Weight 스케일링에 필요한 값 설정
+min_height = 50
+max_height = 250
+min_weight = 30
+max_weight = 200
 
 # 상품 타워: 데이터 임베딩
 def embed_product_data(product_data):
@@ -39,16 +47,46 @@ def embed_product_data(product_data):
     )
     return product_embedding.detach().numpy()
 
-# MongoDB에서 데이터 가져오기
-product_data = product_collection.find_one({"product_id": "1"})  # 특정 상품 ID
+# 사용자 타워: 데이터 임베딩
+def embed_user_data(user_data):
+    # 나이, 성별, 키, 몸무게 임베딩 (임베딩 레이어)
+    embedding_layer = Embedding(num_embeddings=100, embedding_dim=32)  # 임의로 설정된 예시 값
 
-# 임베딩 수행
+    # 예를 들어 성별을 'M'은 0, 'F'는 1로 인코딩
+    gender_id = 0 if user_data['gender'] == 'M' else 1
+
+    # 스케일링 적용
+    height = user_data['height']
+    weight = user_data['weight']
+
+    if not (min_height <= height <= max_height):
+        raise ValueError(f"Invalid height value: {height}. Expected range: {min_height}-{max_height}")
+    if not (min_weight <= weight <= max_weight):
+        raise ValueError(f"Invalid weight value: {weight}. Expected range: {min_weight}-{max_weight}")
+
+    scaled_height = (height - min_height) * 99 // (max_height - min_height)
+    scaled_weight = (weight - min_weight) * 99 // (max_weight - min_weight)
+    
+    age_embedding = embedding_layer(torch.tensor([user_data['age']]))
+    gender_embedding = embedding_layer(torch.tensor([gender_id]))
+    height_embedding = embedding_layer(torch.tensor([scaled_height]))
+    weight_embedding = embedding_layer(torch.tensor([scaled_weight]))
+
+    # 최종 임베딩 벡터 결합
+    user_embedding = torch.cat((age_embedding, gender_embedding, height_embedding, weight_embedding), dim=1)
+    return user_embedding.detach().numpy()
+
+# MongoDB Atlas에서 데이터 가져오기
+product_data = product_collection.find_one({"product_id": 1})  # 특정 상품 ID
+user_data = user_collection.find_one({'user_id': 1})  # 특정 사용자 ID
+
+# 상품 임베딩 수행
 if product_data:
     product_embedding = embed_product_data(product_data)
     print("Product Embedding:", product_embedding)
 
     # MongoDB Atlas의 product_embeddings 컬렉션에 임베딩 저장
-    embedding_collection.update_one(
+    product_embedding_collection.update_one(
         {"product_id": product_data["product_id"]},  # product_id 기준으로 찾기
         {"$set": {"embedding": product_embedding.tolist()}},  # 벡터를 리스트 형태로 저장
         upsert=True  # 기존 항목이 없으면 새로 삽입
@@ -56,3 +94,18 @@ if product_data:
     print("Embedding saved to MongoDB Atlas based on product_id.")
 else:
     print("Product not found.")
+
+# 사용자 임베딩 수행
+if user_data:
+    user_embedding = embed_user_data(user_data)
+    print("User Embedding:", user_embedding)
+
+    # MongoDB Atlas의 user_embeddings 컬렉션에 임베딩 저장
+    user_embedding_collection.update_one(
+        {"user_id": user_data["user_id"]},  # user_id 기준으로 찾기
+        {"$set": {"embedding": user_embedding.tolist()}},  # 벡터를 리스트 형태로 저장
+        upsert=True  # 기존 항목이 없으면 새로 삽입
+    )
+    print("Embedding saved to MongoDB Atlas based on user_id.")
+else:
+    print("User not found.")
