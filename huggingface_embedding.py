@@ -2,12 +2,16 @@ from pymongo import MongoClient
 from transformers import BertTokenizer, BertModel
 import torch
 from torch.nn import Embedding
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 # MongoDB Atlas 연결 설정
-client = MongoClient("mongodb+srv://waseoke:rookies3@cluster0.ps7gq.mongodb.net/test?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true")
+client = MongoClient(
+    "mongodb+srv://waseoke:rookies3@cluster0.ps7gq.mongodb.net/test?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true"
+)
 db = client["two_tower_model"]
 product_collection = db["product_tower"]
-user_collection = db['user_tower']
+user_collection = db["user_tower"]
 product_embedding_collection = db["product_embeddings"]  # 상품 임베딩을 저장할 컬렉션
 user_embedding_collection = db["user_embeddings"]  # 사용자 임베딩을 저장할 컬렉션
 
@@ -20,6 +24,7 @@ min_height = 50
 max_height = 250
 min_weight = 30
 max_weight = 200
+
 
 # 상품 타워: 데이터 임베딩
 def embed_product_data(product_data):
@@ -41,43 +46,65 @@ def embed_product_data(product_data):
     category_embedding = category_embedding_layer(torch.tensor([category_id]))
     color_embedding = color_embedding_layer(torch.tensor([color_id]))
 
+    # 모든 임베딩 벡터 차원 맞추기
+    category_embedding = category_embedding.view(1, -1)  # 2D로 변환
+    color_embedding = color_embedding.view(1, -1)  # 2D로 변환
+
     # 최종 임베딩 벡터 결합
-    product_embedding = torch.cat(
+    combined_embedding = torch.cat(
         (text_embedding, category_embedding, color_embedding), dim=1
     )
+    product_embedding = torch.nn.functional.adaptive_avg_pool1d(
+        combined_embedding.unsqueeze(0), 512
+    ).squeeze(0)
+
     return product_embedding.detach().numpy()
+
 
 # 사용자 타워: 데이터 임베딩
 def embed_user_data(user_data):
     # 나이, 성별, 키, 몸무게 임베딩 (임베딩 레이어)
-    embedding_layer = Embedding(num_embeddings=100, embedding_dim=32)  # 임의로 설정된 예시 값
+    embedding_layer = Embedding(
+        num_embeddings=100, embedding_dim=128
+    )  # 임의로 설정된 예시 값
 
     # 예를 들어 성별을 'M'은 0, 'F'는 1로 인코딩
-    gender_id = 0 if user_data['gender'] == 'M' else 1
+    gender_id = 0 if user_data["gender"] == "M" else 1
 
     # 스케일링 적용
-    height = user_data['height']
-    weight = user_data['weight']
+    height = user_data["height"]
+    weight = user_data["weight"]
 
     if not (min_height <= height <= max_height):
-        raise ValueError(f"Invalid height value: {height}. Expected range: {min_height}-{max_height}")
+        raise ValueError(
+            f"Invalid height value: {height}. Expected range: {min_height}-{max_height}"
+        )
     if not (min_weight <= weight <= max_weight):
-        raise ValueError(f"Invalid weight value: {weight}. Expected range: {min_weight}-{max_weight}")
+        raise ValueError(
+            f"Invalid weight value: {weight}. Expected range: {min_weight}-{max_weight}"
+        )
 
     scaled_height = (height - min_height) * 99 // (max_height - min_height)
     scaled_weight = (weight - min_weight) * 99 // (max_weight - min_weight)
-    
-    age_embedding = embedding_layer(torch.tensor([user_data['age']]))
-    gender_embedding = embedding_layer(torch.tensor([gender_id]))
-    height_embedding = embedding_layer(torch.tensor([scaled_height]))
-    weight_embedding = embedding_layer(torch.tensor([scaled_weight]))
+
+    age_embedding = embedding_layer(torch.tensor([user_data["age"]])).view(1, -1)
+    gender_embedding = embedding_layer(torch.tensor([gender_id])).view(1, -1)
+    height_embedding = embedding_layer(torch.tensor([scaled_height])).view(1, -1)
+    weight_embedding = embedding_layer(torch.tensor([scaled_weight])).view(1, -1)
 
     # 최종 임베딩 벡터 결합
-    user_embedding = torch.cat((age_embedding, gender_embedding, height_embedding, weight_embedding), dim=1)
+    combined_embedding = torch.cat(
+        (age_embedding, gender_embedding, height_embedding, weight_embedding), dim=1
+    )
+    user_embedding = torch.nn.functional.adaptive_avg_pool1d(
+        combined_embedding.unsqueeze(0), 512
+    ).squeeze(0)
+
     return user_embedding.detach().numpy()
 
+
 # MongoDB Atlas에서 데이터 가져오기
-all_products = product_collection.find() # 모든 상품 데이터 가져오기
+all_products = product_collection.find()  # 모든 상품 데이터 가져오기
 all_users = user_collection.find()  # 모든 사용자 데이터 가져오기
 
 # 상품 임베딩 수행
@@ -88,10 +115,14 @@ for product_data in all_products:
     # MongoDB Atlas의 product_embeddings 컬렉션에 임베딩 저장
     product_embedding_collection.update_one(
         {"product_id": product_data["product_id"]},  # product_id 기준으로 찾기
-        {"$set": {"embedding": product_embedding.tolist()}},  # 벡터를 리스트 형태로 저장
-        upsert=True  # 기존 항목이 없으면 새로 삽입
+        {
+            "$set": {"embedding": product_embedding.tolist()}
+        },  # 벡터를 리스트 형태로 저장
+        upsert=True,  # 기존 항목이 없으면 새로 삽입
     )
-    print(f"Embedding saved to MongoDB Atlas for Product ID {product_data['product_id']}.")
+    print(
+        f"Embedding saved to MongoDB Atlas for Product ID {product_data['product_id']}."
+    )
 
 # 사용자 임베딩 수행
 for user_data in all_users:
@@ -102,9 +133,105 @@ for user_data in all_users:
         # MongoDB Atlas의 user_embeddings 컬렉션에 임베딩 저장
         user_embedding_collection.update_one(
             {"user_id": user_data["user_id"]},  # user_id 기준으로 찾기
-            {"$set": {"embedding": user_embedding.tolist()}},  # 벡터를 리스트 형태로 저장
-            upsert=True  # 기존 항목이 없으면 새로 삽입
+            {
+                "$set": {"embedding": user_embedding.tolist()}
+            },  # 벡터를 리스트 형태로 저장
+            upsert=True,  # 기존 항목이 없으면 새로 삽입
         )
         print(f"Embedding saved to MongoDB Atlas for user_id {user_data['user_id']}.")
     except ValueError as e:
         print(f"Skipping user_id {user_data['user_id']} due to error: {e}")
+
+
+# 사용자 맞춤 추천 함수
+def recommend_products_for_user(user_id, top_n=1):
+    try:
+        # MongoDB에서 사용자 임베딩 가져오기
+        user_embedding_data = user_embedding_collection.find_one({"user_id": user_id})
+        if not user_embedding_data:
+            print(f"User ID {user_id} embedding not found.")
+            return []
+
+        user_embedding = np.array(user_embedding_data["embedding"]).reshape(1, -1)
+
+        # 모든 상품 임베딩 가져오기
+        all_product_embeddings = list(product_embedding_collection.find())
+
+        # 상품 ID 및 임베딩 추출
+        product_ids = []
+        product_embeddings = []
+        for product_data in all_product_embeddings:
+            product_ids.append(product_data["product_id"])
+            product_embeddings.append(np.array(product_data["embedding"]))
+
+        product_embeddings = np.array(product_embeddings)
+
+        # 차원 확인 및 조정
+        if product_embeddings.ndim == 3:  # 3D 배열인 경우 평균 풀링 적용
+            product_embeddings = product_embeddings.mean(axis=1)
+        elif product_embeddings.ndim == 1:  # 1D 배열인 경우 2D로 변환
+            product_embeddings = product_embeddings.reshape(1, -1)
+
+        # Debugging: 두 배열의 차원 출력
+        print(f"user_embedding shape: {user_embedding.shape}")
+        print(f"product_embeddings shape: {product_embeddings.shape}")
+
+        # Cosine Similarity 계산
+        similarities = cosine_similarity(user_embedding, product_embeddings).flatten()
+
+        # 유사도 정렬 및 상위 N개 선택
+        top_indices = similarities.argsort()[::-1][:top_n]
+        recommended_products = [(product_ids[i], similarities[i]) for i in top_indices]
+
+        print(f"Top {top_n} recommendations for User ID {user_id}:")
+        for product_id, similarity in recommended_products:
+            print(f"Product ID: {product_id}, Similarity: {similarity:.4f}")
+
+        return recommended_products
+
+    except Exception as e:
+        print(f"Error during recommendation for User ID {user_id}: {e}")
+        return []
+
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 1  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 2  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 3  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 4  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 5  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
+
+# 사용자 맞춤 추천 실행
+user_id_to_recommend = 6  # 추천할 사용자 ID
+top_n_recommendations = 1  # 추천 상품 개수
+recommended_products = recommend_products_for_user(
+    user_id_to_recommend, top_n=top_n_recommendations
+)
