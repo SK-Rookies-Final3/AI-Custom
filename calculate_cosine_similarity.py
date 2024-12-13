@@ -19,7 +19,7 @@ product_embedding_collection = db["product_embeddings"]
 train_dataset = db["train_dataset"]
 
 
-# Autoencoder 모델 정의 (512차원 -> 128차원)
+# Autoencoder 모델 정의
 class Autoencoder(nn.Module):
     def __init__(self):
         super(Autoencoder, self).__init__()
@@ -179,6 +179,13 @@ def recommend_shop_product(similar_product_embedding):
     similarities = calculate_similarity(
         similar_product_embedding, shop_product_embeddings_reduced
     )
-    most_similar_index = np.argmax(similarities)
 
-    return shop_productIds[most_similar_index]
+    # 상위 3개 상품 인덱스 추출
+    top_3_indices = np.argsort(similarities)[-3:][
+        ::-1
+    ]  # 유사도가 높은 상위 3개 (내림차순)
+
+    # 상위 3개 상품 ID 반환
+    top_3_productIds = [shop_productIds[i] for i in top_3_indices]
+
+    return top_3_productIds
