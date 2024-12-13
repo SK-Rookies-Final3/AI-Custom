@@ -10,6 +10,11 @@ app = Flask(__name__)
 # CORS Allowed All Origins
 CORS(app)
 
+@app.route('/')
+def home():
+    
+    return 'healthy'
+
 
 ## DB Creation for Preference Tracker
 load_dotenv()
