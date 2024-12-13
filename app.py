@@ -54,7 +54,7 @@ def execute_script(script_name):
         print(result.stderr)
 
 
-@app.route("/ai-api/product/preference/infer/<int:userId>", methods=["GET"])
+@app.route("/infer-api/product/preference/<int:userId>", methods=["GET"])
 def main(userId):
     # # Step 0: 모델 학습
     # print("Step 0: 모델 학습 중...")

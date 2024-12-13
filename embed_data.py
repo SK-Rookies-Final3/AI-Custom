@@ -190,7 +190,7 @@ def embed_user_data(user_data):
 
 
 # API 호출해서 상품 데이터 가져오고 임베딩하여 저장
-@product_bp.route("/ai-api/products/<int:productId>", methods=["GET"])
+@product_bp.route("/infer-api/products/<int:productId>", methods=["GET"])
 def get_products_data_embedding(productId):
     try:
         all_product_data = list(product_data.find({"productId": productId}))
@@ -240,7 +240,7 @@ def get_products_data_embedding(productId):
 
 
 # API 호출해서 사용자 데이터 가져오고 임베딩하여 저장
-@user_bp.route("/ai-api/users/<int:userId>", methods=["GET"])
+@user_bp.route("/infer-api/users/<int:userId>", methods=["GET"])
 def get_users_data_embedding(userId):
     try:
         if not isinstance(userId, int):
