@@ -194,7 +194,19 @@ def embed_user_data(user_data):
 @product_bp.route("/ai-api/products/<int:productId>", methods=["GET"])
 def get_products_data_embedding(productId):
     try:
-        all_product_data = product_data.find({"productId": productId})
+        all_product_data = list(product_data.find({"productId": productId}))
+
+        # 데이터가 없을 경우 에러 메시지 반환
+        if not all_product_data:
+            return (
+                jsonify(
+                    {
+                        "message": f"No product found with productId {productId}.",
+                        "productId": productId,
+                    }
+                ),
+                404,  # Not Found 상태 코드
+            )
 
         for product_datas in all_product_data:
             product_embedding = embed_product_data(product_datas)
