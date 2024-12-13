@@ -48,12 +48,12 @@ def embed_product_data(product_data):
     """
     # 텍스트 기반 필드 임베딩
     # `tsf_context_dist_vector` 필드에 저장된 텍스트 데이터를 KoBERT를 사용해 임베딩 -> 768차원
-    context_text = product_data["data"]["tsf_context_dist_vector"][0]
-    inputs = tokenizer(
-        context_text, return_tensors="pt", truncation=True, padding=True, max_length=128
-    )
-    outputs = model(**inputs)
-    text_embedding = outputs.last_hidden_state.mean(dim=1)  # BERT 임베딩
+    #context_text = product_data["data"]["tsf_context_dist_vector"][0]
+    #inputs = tokenizer(
+        #context_text, return_tensors="pt", truncation=True, padding=True, max_length=128
+    #)
+    #outputs = model(**inputs)
+    #text_embedding = outputs.last_hidden_state.mean(dim=1)  # BERT 임베딩
 
     # `category`, `fiber_composition`, `color`, `category_specification` 같은 필드는 명목형 데이터이므로, 고유 ID를 임베딩 레이어에 입력하여 벡터화
     category_embedding_layer = Embedding(num_embeddings=100, embedding_dim=16)
@@ -89,18 +89,17 @@ def embed_product_data(product_data):
     )
 
     # 숫자형 데이터는 그대로 텐서로 변환
-    metadata_vector = product_data["data"]["tsf_clothes_metadata_vector_concator"][0]
-    metadata_vector = torch.tensor(metadata_vector, dtype=torch.float32)
+    #metadata_vector = product_data["data"]["tsf_clothes_metadata_vector_concator"][0]
+    #metadata_vector = torch.tensor(metadata_vector, dtype=torch.float32)
 
     # 모든 임베딩 결합
     combined_embedding = torch.cat(
         [
-            text_embedding,
             category_embedding.view(1, -1),
             fiber_composition_embedding.view(1, -1),
             color_embedding.view(1, -1),
             category_specification_embedding.view(1, -1),
-            metadata_vector.view(1, -1),
+
         ],
         dim=1,
     )

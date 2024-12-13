@@ -2,13 +2,26 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from embed_data import product_bp, user_bp
 import os
-
+from dotenv import load_dotenv
+from pymongo import MongoClient
 
 app = Flask(__name__)
 
 # CORS Allowed All Origins
 CORS(app)
 
+
+## DB Creation for Preference Tracker
+load_dotenv()
+
+# MongoDB URI 환경 변수에서 가져오기
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI_HONG = os.getenv("MONGO_URI_HONG")
+
+client = MongoClient(MONGO_URI_HONG)
+
+db = client["user_preference_list"]  # 데이터베이스 선택
+user_preference_collection = db["user_preference"]  # 컬렉션 선택
 
 ## router ##
 # embed_data
@@ -41,7 +54,7 @@ def execute_script(script_name):
         print(result.stderr)
 
 
-@app.route("/ai-api/product/preference/<int:userId>", methods=["GET"])
+@app.route("/ai-api/product/preference/infer/<int:userId>", methods=["GET"])
 def main(userId):
     # # Step 0: 모델 학습
     # print("Step 0: 모델 학습 중...")
@@ -78,6 +91,15 @@ def main(userId):
         recommended_productId = recommend_shop_product(most_similar_product_embedding)
         print(f"추천 쇼핑몰 상품 ID: {recommended_productId}")
 
+        # save MongoDB to repres.data
+        user_preference_data = {
+            "userId": userId,
+            "recommended_productId": recommended_productId,
+        }
+        user_preference_collection.insert_one(user_preference_data)
+
+        
+        
         return jsonify(
             {
                 "user_id": userId,
