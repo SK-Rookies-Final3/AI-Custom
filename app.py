@@ -101,9 +101,12 @@ def main(userId):
             "userId": userId,
             "recommended_productId": recommended_productId,
         }
-        user_preference_collection.insert_one(user_preference_data)
-
         
+        user_preference_collection.update_one(
+            {"userId": userId},  
+            {"$set": user_preference_data},  
+            upsert=True  
+        )
         
         return jsonify(
             {
